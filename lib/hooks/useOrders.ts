@@ -119,9 +119,9 @@ export function useUpdateOrderStatus() {
       orderId: string
       status: OrderStatus
     }) => {
-      const updateData: Record<string, unknown> = { status }
-      if (status === 'entregado') {
-        updateData.delivered_at = new Date().toISOString()
+      const updateData: Record<string, unknown> = {
+        status,
+        delivered_at: status === 'entregado' ? new Date().toISOString() : null,
       }
 
       const { error } = await supabase

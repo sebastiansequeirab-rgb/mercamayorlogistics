@@ -21,8 +21,6 @@ export function OrderStatusChanger({ orderId, currentStatus }: Props) {
   const config = getStatusConfig(currentStatus)
   const updateStatus = useUpdateOrderStatus()
 
-  if (config.next.length === 0) return null
-
   async function handleChange(nextStatus: OrderStatus, label: string) {
     try {
       await updateStatus.mutateAsync({ orderId, status: nextStatus })
@@ -50,16 +48,20 @@ export function OrderStatusChanger({ orderId, currentStatus }: Props) {
         align="end"
         style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
       >
-        {config.next.map((nextStatus, i) => (
-          <DropdownMenuItem
-            key={nextStatus}
-            onClick={() => handleChange(nextStatus as OrderStatus, config.nextLabels[i])}
-            className="text-sm cursor-pointer"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {config.nextLabels[i]}
-          </DropdownMenuItem>
-        ))}
+        {config.next.map((nextStatus, i) => {
+          const isForward = config.nextForward[i]
+          return (
+            <DropdownMenuItem
+              key={nextStatus}
+              onClick={() => handleChange(nextStatus as OrderStatus, config.nextLabels[i])}
+              className="text-sm cursor-pointer flex items-center gap-2"
+              style={{ color: isForward ? 'var(--text-primary)' : 'var(--text-muted)' }}
+            >
+              <span>{isForward ? '→' : '←'}</span>
+              {config.nextLabels[i]}
+            </DropdownMenuItem>
+          )
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   )
