@@ -40,8 +40,20 @@ export function useCreateProduct() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ code, name, unit }: { code: string; name: string; unit: string }) => {
-      const { error } = await supabase.from('mm_products').insert({ code, name, unit, active: true })
+    mutationFn: async ({
+      code, name, unit, categoria, marca, presentacion, peso_kg,
+    }: {
+      code: string
+      name: string
+      unit: string
+      categoria?: string | null
+      marca?: string | null
+      presentacion?: string | null
+      peso_kg?: number | null
+    }) => {
+      const { error } = await supabase.from('mm_products').insert({
+        code, name, unit, active: true, categoria, marca, presentacion, peso_kg,
+      })
       if (error) throw error
     },
     onSuccess: () => {

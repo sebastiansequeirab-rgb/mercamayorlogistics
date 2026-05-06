@@ -8,6 +8,28 @@ import { useProfile } from '@/lib/hooks/useProfile'
 import { Skeleton } from '@/components/ui/skeleton'
 import toast from 'react-hot-toast'
 
+type ProductTotal = {
+  name: string
+  code: string
+  quantity: number
+  marca: string | null
+  categoria: string | null
+  peso_kg: number | null
+}
+
+type BrandGroup = {
+  marca: string
+  products: ProductTotal[]
+  totalWeight: number
+}
+
+const MARCA_COLORS: Record<string, string> = {
+  'De Primera':  '#F59E0B',
+  'Key':         '#3B82F6',
+  'La Rendidora':'#8B5CF6',
+  'Tulipan':     '#22C55E',
+}
+
 export default function ConsolidarPage() {
   const { data: orders = [], isLoading } = useOrders('recibido')
   const { data: profile } = useProfile()
@@ -15,6 +37,7 @@ export default function ConsolidarPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState('')
+  const [view, setView] = useState<'items' | 'marcas'>('marcas')
 
   const userRole = profile?.role ?? 'vendedor'
   const canConsolidar = userRole === 'admin' || userRole === 'gestora'
@@ -28,9 +51,9 @@ export default function ConsolidarPage() {
     })
   }
 
-  const productTotals = useMemo(() => {
+  const productTotals = useMemo((): ProductTotal[] => {
     const selectedOrders = orders.filter((o) => selectedIds.has(o.id))
-    const totals = new Map<string, { name: string; code: string; quantity: number }>()
+    const totals = new Map<string, ProductTotal>()
     for (const order of selectedOrders) {
       for (const item of order.items ?? []) {
         const key = item.product_id
@@ -42,12 +65,37 @@ export default function ConsolidarPage() {
             name: item.product?.name ?? '—',
             code: item.product?.code ?? '—',
             quantity: item.quantity,
+            marca: item.product?.marca ?? null,
+            categoria: item.product?.categoria ?? null,
+            peso_kg: item.product?.peso_kg ?? null,
           })
         }
       }
     }
     return Array.from(totals.values()).sort((a, b) => b.quantity - a.quantity)
   }, [orders, selectedIds])
+
+  const brandGroups = useMemo((): BrandGroup[] => {
+    const groups = new Map<string, ProductTotal[]>()
+    for (const p of productTotals) {
+      const key = p.marca ?? 'Sin marca'
+      const arr = groups.get(key) ?? []
+      arr.push(p)
+      groups.set(key, arr)
+    }
+    return Array.from(groups.entries())
+      .map(([marca, products]) => ({
+        marca,
+        products,
+        totalWeight: products.reduce((sum, p) => sum + (p.peso_kg ?? 0) * p.quantity, 0),
+      }))
+      .sort((a, b) => b.totalWeight - a.totalWeight)
+  }, [productTotals])
+
+  const grandTotalWeight = useMemo(
+    () => productTotals.reduce((sum, p) => sum + (p.peso_kg ?? 0) * p.quantity, 0),
+    [productTotals]
+  )
 
   async function handleConsolidar() {
     if (selectedIds.size === 0) {
@@ -172,40 +220,139 @@ export default function ConsolidarPage() {
         )}
       </div>
 
-      {/* Product totals */}
+      {/* Consolidated view */}
       {selectedIds.size > 0 && productTotals.length > 0 && (
         <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border-subtle)' }}>
+          {/* Panel header with view toggle */}
           <div
-            className="px-4 py-3 border-b"
+            className="px-4 py-3 border-b flex items-center justify-between"
             style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
           >
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Consolidado de Productos{' '}
-              <span className="font-normal text-xs" style={{ color: 'var(--text-muted)' }}>
-                ({selectedIds.size} pedido{selectedIds.size > 1 ? 's' : ''})
-              </span>
-            </p>
-          </div>
-          <div style={{ background: 'var(--bg-card)' }}>
-            {productTotals.map((p, i) => (
-              <div
-                key={p.code}
-                className="flex items-center justify-between px-4 py-3"
-                style={{
-                  borderBottom: i < productTotals.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                  background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-surface)',
-                }}
-              >
-                <div className="min-w-0">
-                  <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{p.code}</p>
-                  <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                </div>
-                <span className="text-sm font-bold font-mono ml-4 shrink-0" style={{ color: 'var(--accent-primary)' }}>
-                  ×{p.quantity}
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Consolidado{' '}
+                <span className="font-normal text-xs" style={{ color: 'var(--text-muted)' }}>
+                  ({selectedIds.size} pedido{selectedIds.size > 1 ? 's' : ''})
                 </span>
-              </div>
-            ))}
+              </p>
+              {grandTotalWeight > 0 && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--accent-primary)' }}>
+                  Peso total estimado: <span className="font-bold font-mono">{grandTotalWeight.toFixed(1)} kg</span>
+                </p>
+              )}
+            </div>
+            {/* View toggle */}
+            <div
+              className="flex rounded-md overflow-hidden border text-xs"
+              style={{ borderColor: 'var(--border-subtle)' }}
+            >
+              {(['marcas', 'items'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className="px-3 py-1.5 font-medium transition-colors"
+                  style={{
+                    background: view === v ? 'var(--accent-primary)' : 'transparent',
+                    color: view === v ? '#fff' : 'var(--text-muted)',
+                  }}
+                >
+                  {v === 'marcas' ? 'Por Marca' : 'Por Ítem'}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* By brand */}
+          {view === 'marcas' && (
+            <div style={{ background: 'var(--bg-card)' }}>
+              {brandGroups.map((group, gi) => {
+                const color = MARCA_COLORS[group.marca] ?? 'var(--text-muted)'
+                return (
+                  <div
+                    key={group.marca}
+                    style={{ borderBottom: gi < brandGroups.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
+                  >
+                    {/* Brand header */}
+                    <div
+                      className="flex items-center justify-between px-4 py-2.5"
+                      style={{ background: 'var(--bg-surface)' }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ background: color }}
+                        />
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color }}>
+                          {group.marca}
+                        </span>
+                      </div>
+                      {group.totalWeight > 0 && (
+                        <span className="text-xs font-mono font-semibold" style={{ color }}>
+                          {group.totalWeight.toFixed(1)} kg
+                        </span>
+                      )}
+                    </div>
+                    {/* Brand products */}
+                    {group.products.map((p, pi) => (
+                      <div
+                        key={p.code}
+                        className="flex items-center justify-between px-4 py-3 pl-8"
+                        style={{
+                          borderTop: '1px solid var(--border-subtle)',
+                          background: pi % 2 === 0 ? 'var(--bg-card)' : 'rgba(255,255,255,0.02)',
+                        }}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{p.code}</p>
+                          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                          {p.peso_kg != null && (
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                              {(p.peso_kg * p.quantity).toFixed(1)} kg total · {p.peso_kg} kg/u
+                            </p>
+                          )}
+                        </div>
+                        <span
+                          className="text-sm font-bold font-mono ml-4 shrink-0"
+                          style={{ color: 'var(--accent-primary)' }}
+                        >
+                          ×{p.quantity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* By item (flat list) */}
+          {view === 'items' && (
+            <div style={{ background: 'var(--bg-card)' }}>
+              {productTotals.map((p, i) => (
+                <div
+                  key={p.code}
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{
+                    borderBottom: i < productTotals.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-surface)',
+                  }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{p.code}</p>
+                    <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                    {p.peso_kg != null && (
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {(p.peso_kg * p.quantity).toFixed(1)} kg total
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold font-mono ml-4 shrink-0" style={{ color: 'var(--accent-primary)' }}>
+                    ×{p.quantity}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

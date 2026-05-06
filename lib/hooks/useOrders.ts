@@ -9,7 +9,7 @@ const ORDER_SELECT = `
   creator:mm_profiles!created_by(id, full_name, role),
   items:mm_order_items(
     id, order_id, product_id, quantity,
-    product:mm_products(id, code, name, unit)
+    product:mm_products(id, code, name, unit, categoria, marca, presentacion, peso_kg)
   ),
   comments:mm_order_comments(
     id, order_id, author_id, content, created_at,

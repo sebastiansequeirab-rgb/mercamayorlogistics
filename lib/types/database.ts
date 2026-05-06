@@ -18,6 +18,10 @@ export interface Product {
   name: string
   unit: string
   active: boolean
+  categoria: string | null
+  marca: string | null
+  presentacion: string | null
+  peso_kg: number | null
   created_at: string
 }
 
