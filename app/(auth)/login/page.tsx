@@ -22,7 +22,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      toast.error('Credenciales incorrectas')
+      toast.error(error.message)
       setLoading(false)
       return
     }
@@ -32,7 +32,7 @@ export default function LoginPage() {
     if (!user) { setLoading(false); return }
 
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('mm_profiles')
       .select('role')
       .eq('id', user.id)
       .single()
