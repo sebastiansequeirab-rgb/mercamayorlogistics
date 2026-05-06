@@ -5,8 +5,8 @@ export const createClient = (request: NextRequest) => {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    'https://dbfkrqxvaapoqgcocrnj.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiZmtycXh2YWFwb3FnY29jcm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjQ3NzYsImV4cCI6MjA5MTk0MDc3Nn0.HWYJRyOztVldhPmPHs0yUH-jK5QrwqhABGgEm2Iq6Fc',
     {
       cookies: {
         getAll() {
