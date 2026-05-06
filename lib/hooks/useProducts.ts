@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { Product } from '@/lib/types/database'
 
@@ -16,6 +16,36 @@ export function useProducts(activeOnly = true) {
       if (error) throw error
       return data as Product[]
     },
-    staleTime: 300000, // Products change rarely
+    staleTime: 300000,
+  })
+}
+
+export function useToggleProduct() {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { error } = await supabase.from('mm_products').update({ active }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    },
+  })
+}
+
+export function useCreateProduct() {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ code, name, unit }: { code: string; name: string; unit: string }) => {
+      const { error } = await supabase.from('mm_products').insert({ code, name, unit, active: true })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    },
   })
 }

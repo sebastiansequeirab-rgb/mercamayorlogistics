@@ -137,6 +137,24 @@ export function useUpdateOrderStatus() {
   })
 }
 
+export function useConsolidarOrders() {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (orderIds: string[]) => {
+      const { error } = await supabase
+        .from('mm_orders')
+        .update({ status: 'en_transito' })
+        .in('id', orderIds)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
 export function useAddComment() {
   const supabase = createClient()
   const queryClient = useQueryClient()
