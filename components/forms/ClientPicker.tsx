@@ -153,7 +153,7 @@ export function ClientPicker({ value, onChange }: Props) {
                   placeholder="Buscar por nombre o RIF..."
                   style={{ color: 'var(--text-primary)' }}
                 />
-                <CommandList>
+                <CommandList key={clients.length}>
                   {isLoading ? (
                     <div className="py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
                       Cargando clientes...

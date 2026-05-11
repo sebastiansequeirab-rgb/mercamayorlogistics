@@ -226,7 +226,7 @@ export function ShipmentDetailModal({ shipmentId, open, onClose, userRole }: Pro
                   >
                     <Command style={{ background: 'transparent' }}>
                       <CommandInput placeholder="Buscar pedido recibido..." style={{ color: 'var(--text-primary)' }} />
-                      <CommandList>
+                      <CommandList key={recibidoOrders.length}>
                         <CommandEmpty style={{ color: 'var(--text-muted)' }}>Sin pedidos recibidos.</CommandEmpty>
                         <CommandGroup>
                           {recibidoOrders.map((order) => (
