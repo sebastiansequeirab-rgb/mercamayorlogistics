@@ -2,11 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { Order, OrderStatus, NewOrderPayload } from '@/lib/types/database'
+import type { Order, OrderStatus, NewOrderPayload, UpdateOrderPayload } from '@/lib/types/database'
 
 const ORDER_SELECT = `
   *,
   creator:mm_profiles!created_by(id, full_name, role),
+  client:mm_clients!client_id(id, name, rif, address, phone, active, created_at),
+  shipment:mm_shipments!shipment_id(id, shipment_number, status, notes, created_at),
   items:mm_order_items(
     id, order_id, product_id, quantity,
     product:mm_products(id, code, name, unit, categoria, marca, presentacion, peso_kg)
@@ -17,7 +19,9 @@ const ORDER_SELECT = `
   )
 `
 
-export function useOrders(statusFilter?: OrderStatus | 'active') {
+export type OrderFilter = OrderStatus | 'active' | 'active_plus_delivered'
+
+export function useOrders(statusFilter?: OrderFilter) {
   const supabase = createClient()
 
   return useQuery<Order[]>({
@@ -30,6 +34,12 @@ export function useOrders(statusFilter?: OrderStatus | 'active') {
 
       if (statusFilter === 'active') {
         query = query.in('status', ['recibido', 'en_transito'])
+      } else if (statusFilter === 'active_plus_delivered') {
+        const cutoff = new Date()
+        cutoff.setDate(cutoff.getDate() - 30)
+        query = query.or(
+          `status.in.(recibido,en_transito),and(status.eq.entregado,delivered_at.gte.${cutoff.toISOString()})`
+        )
       } else if (statusFilter) {
         query = query.eq('status', statusFilter)
       }
@@ -70,11 +80,11 @@ export function useCreateOrder() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No autenticado')
 
-      // Insert order
       const { data: order, error: orderError } = await supabase
         .from('mm_orders')
         .insert({
           created_by: user.id,
+          client_id: payload.client_id ?? null,
           vendor_client: payload.vendor_client,
           price_list: payload.price_list,
           billing_type: payload.billing_type,
@@ -86,7 +96,6 @@ export function useCreateOrder() {
 
       if (orderError) throw orderError
 
-      // Insert items
       const items = payload.items.map((item) => ({
         order_id: order.id,
         product_id: item.product_id,
@@ -103,6 +112,60 @@ export function useCreateOrder() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+export function useUpdateOrder() {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      payload,
+    }: {
+      orderId: string
+      payload: UpdateOrderPayload
+    }) => {
+      const { items, ...rest } = payload
+      const updateData: Record<string, unknown> = {}
+      if (rest.client_id !== undefined) updateData.client_id = rest.client_id
+      if (rest.vendor_client !== undefined) updateData.vendor_client = rest.vendor_client
+      if (rest.price_list !== undefined) updateData.price_list = rest.price_list
+      if (rest.billing_type !== undefined) updateData.billing_type = rest.billing_type
+      if (rest.notes !== undefined) updateData.notes = rest.notes || null
+
+      if (Object.keys(updateData).length > 0) {
+        const { error } = await supabase
+          .from('mm_orders')
+          .update(updateData)
+          .eq('id', orderId)
+        if (error) throw error
+      }
+
+      if (items) {
+        // Replace items: delete existing then insert new
+        const { error: delError } = await supabase
+          .from('mm_order_items')
+          .delete()
+          .eq('order_id', orderId)
+        if (delError) throw delError
+
+        if (items.length > 0) {
+          const rows = items.map((it) => ({
+            order_id: orderId,
+            product_id: it.product_id,
+            quantity: it.quantity,
+          }))
+          const { error: insError } = await supabase.from('mm_order_items').insert(rows)
+          if (insError) throw insError
+        }
+      }
+    },
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] })
     },
   })
 }
@@ -142,15 +205,44 @@ export function useConsolidarOrders() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (orderIds: string[]) => {
-      const { error } = await supabase
+    mutationFn: async ({
+      orderIds,
+      notes,
+    }: {
+      orderIds: string[]
+      notes?: string
+    }) => {
+      if (orderIds.length === 0) throw new Error('No hay pedidos seleccionados')
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No autenticado')
+
+      // 1. Create shipment
+      const { data: shipment, error: shipError } = await supabase
+        .from('mm_shipments')
+        .insert({
+          status: 'programado',
+          notes: notes?.trim() || null,
+          created_by: user.id,
+        })
+        .select('id, shipment_number')
+        .single()
+
+      if (shipError) throw shipError
+
+      // 2. Link orders to shipment and mark en_transito
+      const { error: updateError } = await supabase
         .from('mm_orders')
-        .update({ status: 'en_transito' })
+        .update({ status: 'en_transito', shipment_id: shipment.id })
         .in('id', orderIds)
-      if (error) throw error
+
+      if (updateError) throw updateError
+
+      return shipment
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['shipments'] })
     },
   })
 }

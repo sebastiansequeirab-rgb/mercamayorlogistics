@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useCreateOrder } from '@/lib/hooks/useOrders'
 import { useProducts } from '@/lib/hooks/useProducts'
 import { ProductSelector } from './ProductSelector'
-import type { Product, PriceList, BillingType } from '@/lib/types/database'
+import { ClientPicker } from './ClientPicker'
+import type { Client, Product, PriceList, BillingType } from '@/lib/types/database'
 import toast from 'react-hot-toast'
 
 interface SelectedItem {
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export function NewOrderForm({ onSuccess }: Props) {
-  const [client, setClient] = useState('')
+  const [client, setClient] = useState<Client | null>(null)
   const [priceList, setPriceList] = useState<PriceList>('lista_50')
   const [billingType, setBillingType] = useState<BillingType>('factura')
   const [items, setItems] = useState<SelectedItem[]>([])
@@ -29,8 +30,8 @@ export function NewOrderForm({ onSuccess }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!client.trim()) {
-      toast.error('Ingresa el nombre del cliente')
+    if (!client) {
+      toast.error('Selecciona un cliente')
       return
     }
     if (items.length === 0) {
@@ -40,7 +41,8 @@ export function NewOrderForm({ onSuccess }: Props) {
 
     try {
       const order = await createOrder.mutateAsync({
-        vendor_client: client.trim(),
+        client_id: client.id,
+        vendor_client: client.name,
         price_list: priceList,
         billing_type: billingType,
         notes: notes.trim() || undefined,
@@ -48,7 +50,7 @@ export function NewOrderForm({ onSuccess }: Props) {
       })
 
       toast.success(`✅ Pedido #${String(order.order_number).padStart(3, '0')} enviado`)
-      setClient('')
+      setClient(null)
       setPriceList('lista_50')
       setBillingType('factura')
       setItems([])
@@ -63,22 +65,12 @@ export function NewOrderForm({ onSuccess }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-      {/* Client name */}
+      {/* Client picker */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Nombre del cliente *
+          Cliente *
         </label>
-        <input
-          value={client}
-          onChange={(e) => setClient(e.target.value)}
-          placeholder="Distribuidora El Palmar..."
-          className="w-full rounded-md px-3 py-2.5 text-sm border outline-none"
-          style={{
-            background: 'var(--bg-surface)',
-            borderColor: 'var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
-        />
+        <ClientPicker value={client} onChange={setClient} />
       </div>
 
       {/* Price list toggle */}

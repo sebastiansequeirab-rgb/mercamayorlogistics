@@ -145,7 +145,7 @@ export default function ConsolidarPage() {
       return
     }
     try {
-      await consolidar.mutateAsync(Array.from(selectedIds))
+      await consolidar.mutateAsync({ orderIds: Array.from(selectedIds), notes })
       const n = selectedIds.size
       toast.success(`🚛 ${n} pedido${n > 1 ? 's' : ''} enviado${n > 1 ? 's' : ''} al camión`)
       setSelectedIds(new Set())
@@ -174,7 +174,7 @@ export default function ConsolidarPage() {
   return (
     <div className="px-4 md:px-6 py-5 max-w-4xl mx-auto space-y-5">
       <div>
-        <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Consolidar Envío</h1>
+        <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Consolidar Camión</h1>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
           Selecciona los pedidos recibidos para enviar al camión Valencia → Caracas
         </p>

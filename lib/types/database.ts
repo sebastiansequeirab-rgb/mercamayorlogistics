@@ -25,10 +25,28 @@ export interface Product {
   created_at: string
 }
 
+export interface Client {
+  id: string
+  name: string
+  rif: string | null
+  address: string | null
+  phone: string | null
+  active: boolean
+  created_at: string
+}
+
+export interface ClientPayload {
+  name: string
+  rif?: string | null
+  address?: string | null
+  phone?: string | null
+}
+
 export interface Order {
   id: string
   order_number: number
   created_by: string
+  client_id: string | null
   vendor_client: string
   price_list: PriceList
   billing_type: BillingType
@@ -40,8 +58,10 @@ export interface Order {
   delivered_at: string | null
   // Joined fields
   creator?: Profile
+  client?: Client
   items?: OrderItemWithProduct[]
   comments?: OrderComment[]
+  shipment?: Shipment
   _count?: { items: number; comments: number }
 }
 
@@ -75,9 +95,34 @@ export interface Shipment {
 }
 
 export interface NewOrderPayload {
+  client_id?: string | null
   vendor_client: string
   price_list: PriceList
   billing_type: BillingType
   notes?: string
   items: { product_id: string; quantity: number }[]
+}
+
+export interface UpdateOrderPayload {
+  client_id?: string | null
+  vendor_client?: string
+  price_list?: PriceList
+  billing_type?: BillingType
+  notes?: string | null
+  items?: { product_id: string; quantity: number }[]
+}
+
+export interface ProductUpdatePayload {
+  code?: string
+  name?: string
+  unit?: string
+  categoria?: string | null
+  marca?: string | null
+  presentacion?: string | null
+  peso_kg?: number | null
+}
+
+export interface ShipmentUpdatePayload {
+  status?: ShipmentStatus
+  notes?: string | null
 }

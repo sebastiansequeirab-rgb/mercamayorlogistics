@@ -3,11 +3,12 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
-import { useProducts, useToggleProduct, useCreateProduct } from '@/lib/hooks/useProducts'
+import { Plus, X, Pencil } from 'lucide-react'
+import { useProducts, useToggleProduct, useCreateProduct, useUpdateProduct } from '@/lib/hooks/useProducts'
 import { useProfile } from '@/lib/hooks/useProfile'
 import { Skeleton } from '@/components/ui/skeleton'
 import toast from 'react-hot-toast'
+import type { Product } from '@/lib/types/database'
 
 const CATEGORIAS = ['Aceite de Palma', 'Aceite Vegetal', 'Manteca Vegetal', 'Margarina', 'Mayonesa', 'Oleina de Palma']
 const MARCAS = ['De Primera', 'Key', 'La Rendidora', 'Tulipan']
@@ -22,16 +23,20 @@ const CATEGORIA_COLORS: Record<string, string> = {
   'Oleina de Palma': '#22C55E',
 }
 
+const EMPTY_FORM = { code: '', name: '', unit: 'unidad', categoria: '', marca: '', presentacion: '', peso_kg: '' }
+
 export default function CatalogoPage() {
   const { data: products = [], isLoading } = useProducts(false)
   const { data: profile } = useProfile()
   const toggleProduct = useToggleProduct()
   const createProduct = useCreateProduct()
+  const updateProduct = useUpdateProduct()
 
   const [filterCategoria, setFilterCategoria] = useState('Todos')
   const [filterMarca, setFilterMarca] = useState('Todos')
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', unit: 'unidad', categoria: '', marca: '', presentacion: '', peso_kg: '' })
+  const [editing, setEditing] = useState<Product | null>(null)
+  const [form, setForm] = useState(EMPTY_FORM)
 
   const canManage = profile?.role === 'admin' || profile?.role === 'gestora'
 
@@ -49,31 +54,60 @@ export default function CatalogoPage() {
     }
   }
 
-  function resetModal() {
-    setShowModal(false)
-    setForm({ code: '', name: '', unit: 'unidad', categoria: '', marca: '', presentacion: '', peso_kg: '' })
+  function openCreate() {
+    setEditing(null)
+    setForm(EMPTY_FORM)
+    setShowModal(true)
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  function openEdit(product: Product) {
+    setEditing(product)
+    setForm({
+      code: product.code,
+      name: product.name,
+      unit: product.unit,
+      categoria: product.categoria ?? '',
+      marca: product.marca ?? '',
+      presentacion: product.presentacion ?? '',
+      peso_kg: product.peso_kg != null ? String(product.peso_kg) : '',
+    })
+    setShowModal(true)
+  }
+
+  function resetModal() {
+    setShowModal(false)
+    setEditing(null)
+    setForm(EMPTY_FORM)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.code.trim() || !form.name.trim()) return
+    const payload = {
+      code: form.code.trim().toUpperCase(),
+      name: form.name.trim().toUpperCase(),
+      unit: form.unit.trim() || 'unidad',
+      categoria: form.categoria || null,
+      marca: form.marca || null,
+      presentacion: form.presentacion || null,
+      peso_kg: form.peso_kg ? parseFloat(form.peso_kg) : null,
+    }
     try {
-      await createProduct.mutateAsync({
-        code: form.code.trim().toUpperCase(),
-        name: form.name.trim().toUpperCase(),
-        unit: form.unit.trim() || 'unidad',
-        categoria: form.categoria || null,
-        marca: form.marca || null,
-        presentacion: form.presentacion || null,
-        peso_kg: form.peso_kg ? parseFloat(form.peso_kg) : null,
-      })
-      toast.success('Producto creado')
+      if (editing) {
+        await updateProduct.mutateAsync({ id: editing.id, payload })
+        toast.success('Producto actualizado')
+      } else {
+        await createProduct.mutateAsync(payload)
+        toast.success('Producto creado')
+      }
       resetModal()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
-      toast.error(msg.includes('duplicate') || msg.includes('unique') ? 'Ese código ya existe' : 'Error al crear producto')
+      toast.error(msg.includes('duplicate') || msg.includes('unique') ? 'Ese código ya existe' : 'Error al guardar producto')
     }
   }
+
+  const isPending = createProduct.isPending || updateProduct.isPending
 
   return (
     <div className="px-4 md:px-6 py-5 max-w-5xl mx-auto">
@@ -87,7 +121,7 @@ export default function CatalogoPage() {
         </div>
         {canManage && (
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openCreate}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium"
             style={{ background: 'var(--accent-primary)', color: '#fff' }}
           >
@@ -128,7 +162,7 @@ export default function CatalogoPage() {
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Marca</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Presentación</th>
               <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Peso/u</th>
-              {canManage && <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Estado</th>}
+              {canManage && <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -165,7 +199,15 @@ export default function CatalogoPage() {
                     {product.peso_kg != null ? `${product.peso_kg} kg` : '—'}
                   </td>
                   {canManage && (
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => openEdit(product)}
+                        className="inline-flex items-center justify-center w-7 h-7 rounded mr-1 hover:bg-white/5"
+                        style={{ color: 'var(--text-secondary)' }}
+                        title="Editar"
+                      >
+                        <Pencil size={14} />
+                      </button>
                       <button
                         onClick={() => handleToggle(product.id, product.active)}
                         disabled={toggleProduct.isPending}
@@ -192,10 +234,12 @@ export default function CatalogoPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={(e) => e.target === e.currentTarget && resetModal()}>
           <div className="w-full max-w-md rounded-xl border p-6 space-y-4 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Nuevo Producto</h2>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {editing ? 'Editar Producto' : 'Nuevo Producto'}
+              </h2>
               <button onClick={resetModal} className="p-1 rounded hover:bg-white/10"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
-            <form onSubmit={handleCreate} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* Text fields */}
               {[
                 { label: 'Código *', key: 'code', placeholder: 'PT01TULI18LT' },
@@ -245,8 +289,8 @@ export default function CatalogoPage() {
               </div>
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={resetModal} className="flex-1 py-2 rounded-md text-sm border hover:bg-white/5" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}>Cancelar</button>
-                <button type="submit" disabled={createProduct.isPending || !form.code.trim() || !form.name.trim()} className="flex-1 py-2 rounded-md text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--accent-primary)', color: '#fff' }}>
-                  {createProduct.isPending ? 'Creando...' : 'Crear'}
+                <button type="submit" disabled={isPending || !form.code.trim() || !form.name.trim()} className="flex-1 py-2 rounded-md text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--accent-primary)', color: '#fff' }}>
+                  {isPending ? 'Guardando...' : editing ? 'Guardar' : 'Crear'}
                 </button>
               </div>
             </form>

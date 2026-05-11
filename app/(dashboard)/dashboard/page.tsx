@@ -9,21 +9,21 @@ import { useProfile } from '@/lib/hooks/useProfile'
 import { OrderCard } from '@/components/orders/OrderCard'
 import { OrderDetailModal } from '@/components/orders/OrderDetailModal'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { Order, OrderStatus } from '@/lib/types/database'
+import type { Order } from '@/lib/types/database'
 import { isToday } from 'date-fns'
 
-type FilterTab = 'todos' | 'recibido' | 'en_transito'
+type FilterTab = 'todos' | 'recibido' | 'en_transito' | 'entregado'
 
 const FILTER_TABS: { id: FilterTab; label: string }[] = [
   { id: 'todos', label: 'Todos' },
   { id: 'recibido', label: 'Recibidos' },
   { id: 'en_transito', label: 'En Tránsito' },
+  { id: 'entregado', label: 'Entregados' },
 ]
 
 export default function DashboardPage() {
-  const { data: orders = [], isLoading } = useOrders('active')
+  const { data: orders = [], isLoading } = useOrders('active_plus_delivered')
   const { data: profile } = useProfile()
-  const { data: allOrders = [] } = useOrders()
 
   const [filter, setFilter] = useState<FilterTab>('todos')
   const [search, setSearch] = useState('')
@@ -33,11 +33,11 @@ export default function DashboardPage() {
   const metrics = useMemo(() => {
     const recibidos = orders.filter((o) => o.status === 'recibido').length
     const enTransito = orders.filter((o) => o.status === 'en_transito').length
-    const entregadosHoy = allOrders.filter(
+    const entregadosHoy = orders.filter(
       (o) => o.status === 'entregado' && o.delivered_at && isToday(new Date(o.delivered_at))
     ).length
     return { recibidos, enTransito, entregadosHoy }
-  }, [orders, allOrders])
+  }, [orders])
 
   // Filtered orders
   const filtered = useMemo(() => {
