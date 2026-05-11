@@ -217,7 +217,6 @@ export function useConsolidarOrders() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No autenticado')
 
-      // 1. Create shipment
       const { data: shipment, error: shipError } = await supabase
         .from('mm_shipments')
         .insert({
@@ -230,10 +229,14 @@ export function useConsolidarOrders() {
 
       if (shipError) throw shipError
 
-      // 2. Link orders to shipment and mark en_transito
+      // Loading orders onto the truck = delivered (from warehouse perspective)
       const { error: updateError } = await supabase
         .from('mm_orders')
-        .update({ status: 'en_transito', shipment_id: shipment.id })
+        .update({
+          status: 'entregado',
+          shipment_id: shipment.id,
+          delivered_at: new Date().toISOString(),
+        })
         .in('id', orderIds)
 
       if (updateError) throw updateError

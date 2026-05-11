@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { X, Pencil, Trash2, Plus, Check } from 'lucide-react'
@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { ShipmentStatusBadge } from './ShipmentStatusBadge'
 import { ShipmentStatusChanger } from './ShipmentStatusChanger'
+import { OrdersAnalytics } from '@/components/orders/OrdersAnalytics'
 import {
   useShipment,
   useUpdateShipment,
@@ -47,19 +48,6 @@ export function ShipmentDetailModal({ shipmentId, open, onClose, userRole }: Pro
   }, [shipment])
 
   const orders = shipment?.orders ?? []
-  const totals = useMemo(() => {
-    let weight = 0
-    let units = 0
-    for (const o of orders) {
-      for (const it of o.items ?? []) {
-        const qty = it.quantity ?? 0
-        const w = it.product?.peso_kg ?? 0
-        units += qty
-        weight += qty * w
-      }
-    }
-    return { weight, units, count: orders.length }
-  }, [orders])
 
   async function handleSaveNotes() {
     if (!shipment) return
@@ -141,12 +129,10 @@ export function ShipmentDetailModal({ shipmentId, open, onClose, userRole }: Pro
               value={format(new Date(shipment.created_at), "d 'de' MMMM yyyy, HH:mm", { locale: es })}
             />
             <InfoRow label="Por" value={shipment.creator?.full_name ?? '—'} />
-            <InfoRow label="Pedidos" value={String(totals.count)} />
-            <InfoRow label="Unidades" value={String(totals.units)} />
-            {totals.weight > 0 && (
-              <InfoRow label="Peso total" value={`${totals.weight.toFixed(1)} kg`} />
-            )}
           </div>
+
+          {/* Analytics — full visual breakdown of the truck's cargo */}
+          {orders.length > 0 && <OrdersAnalytics orders={orders} />}
 
           <Separator style={{ background: 'var(--border-subtle)' }} />
 
