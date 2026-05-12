@@ -61,7 +61,7 @@ export const STATUS_CONFIG: Record<
     nextForward: [true],
   },
   en_transito: {
-    label: 'EN TRÁNSITO',
+    label: 'PROGRAMADO',
     color: '#3B82F6',
     bg: '#0A1628',
     next: ['entregado', 'recibido'],

@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useMemo } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useOrders, useConsolidarOrders } from '@/lib/hooks/useOrders'
 import { useProfile } from '@/lib/hooks/useProfile'
 import { OrdersAnalytics } from '@/components/orders/OrdersAnalytics'
@@ -15,6 +16,7 @@ export default function ConsolidarPage() {
   const consolidar = useConsolidarOrders()
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState('')
 
   const userRole = profile?.role ?? 'vendedor'
@@ -22,6 +24,15 @@ export default function ConsolidarPage() {
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -62,8 +73,9 @@ export default function ConsolidarPage() {
     try {
       await consolidar.mutateAsync({ orderIds: Array.from(selectedIds), notes })
       const n = selectedIds.size
-      toast.success(`🚛 ${n} pedido${n > 1 ? 's' : ''} consolidado${n > 1 ? 's' : ''} y entregado${n > 1 ? 's' : ''} al camión`)
+      toast.success(`🚛 ${n} pedido${n > 1 ? 's' : ''} enviado${n > 1 ? 's' : ''} a Programados`)
       setSelectedIds(new Set())
+      setExpandedIds(new Set())
       setNotes('')
     } catch {
       toast.error('Error al consolidar pedidos')
@@ -83,9 +95,9 @@ export default function ConsolidarPage() {
   return (
     <div className="px-4 md:px-6 py-5 max-w-4xl mx-auto space-y-5">
       <div>
-        <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Consolidar Camión</h1>
+        <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Consolidar</h1>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          Selecciona los pedidos recibidos para cargar al camión. Al consolidar, los pedidos quedan marcados como entregados al camión.
+          Selecciona los pedidos recibidos para programar un camión. Click en la flecha para ver el detalle.
         </p>
       </div>
 
@@ -118,30 +130,121 @@ export default function ConsolidarPage() {
           <div style={{ background: 'var(--bg-card)' }}>
             {orders.map((order, i) => {
               const selected = selectedIds.has(order.id)
+              const expanded = expandedIds.has(order.id)
+              const items = order.items ?? []
+              const orderWeight = items.reduce(
+                (s, it) => s + (it.product?.peso_kg ?? 0) * it.quantity,
+                0
+              )
+              const orderUnits = items.reduce((s, it) => s + it.quantity, 0)
               return (
-                <label
+                <div
                   key={order.id}
-                  className="flex items-start gap-3 px-4 py-3.5 cursor-pointer hover:bg-white/5 transition-colors"
                   style={{
                     borderBottom: i < orders.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                     background: selected ? 'rgba(37,99,235,0.05)' : 'transparent',
                   }}
                 >
-                  <input type="checkbox" checked={selected} onChange={() => toggleSelect(order.id)} className="mt-0.5 shrink-0 accent-blue-500" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-muted)' }}>#{String(order.order_number).padStart(3, '0')}</span>
-                      <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                        {order.client?.name ?? order.vendor_client}
-                      </span>
+                  {/* Row */}
+                  <div
+                    onClick={() => toggleSelect(order.id)}
+                    className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-white/5 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      readOnly
+                      tabIndex={-1}
+                      className="shrink-0 accent-blue-500 pointer-events-none"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-muted)' }}>
+                          #{String(order.order_number).padStart(3, '0')}
+                        </span>
+                        <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                          {order.client?.name ?? order.vendor_client}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {order.price_list === 'lista_50' ? 'Lista 50' : 'Lista 60'}{' · '}
+                        {order.billing_type === 'factura' ? 'Factura' : 'Nota de Entrega'}{' · '}
+                        {items.length} producto{items.length !== 1 ? 's' : ''} · ×{orderUnits}
+                      </p>
                     </div>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      {order.price_list === 'lista_50' ? 'Lista 50' : 'Lista 60'}{' · '}
-                      {order.billing_type === 'factura' ? 'Factura' : 'Nota de Entrega'}{' · '}
-                      {(order.items ?? []).length} producto{(order.items ?? []).length !== 1 ? 's' : ''}
-                    </p>
+                    {orderWeight > 0 && (
+                      <span
+                        className="text-xs font-mono font-semibold shrink-0 px-2 py-1 rounded"
+                        style={{ color: 'var(--accent-primary)', background: 'rgba(59,130,246,0.1)' }}
+                      >
+                        {orderWeight.toFixed(1)} kg
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleExpand(order.id)
+                      }}
+                      className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                      aria-label={expanded ? 'Contraer' : 'Expandir'}
+                    >
+                      {expanded ? (
+                        <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
+                      ) : (
+                        <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                      )}
+                    </button>
                   </div>
-                </label>
+
+                  {/* Expanded details */}
+                  {expanded && items.length > 0 && (
+                    <div
+                      className="px-4 pb-4 pt-1 space-y-1.5"
+                      style={{ background: 'var(--bg-surface)' }}
+                    >
+                      {order.notes && (
+                        <p className="text-xs italic mb-2" style={{ color: 'var(--text-muted)' }}>
+                          📝 {order.notes}
+                        </p>
+                      )}
+                      <div className="rounded-md overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
+                        {items.map((item, j) => {
+                          const itemWeight = (item.product?.peso_kg ?? 0) * item.quantity
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between px-3 py-2"
+                              style={{
+                                borderTop: j > 0 ? '1px solid var(--border-subtle)' : 'none',
+                                background: j % 2 === 0 ? 'var(--bg-card)' : 'transparent',
+                              }}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                                  {item.product?.code ?? '—'}
+                                </p>
+                                <p className="text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
+                                  {item.product?.name ?? '—'}
+                                </p>
+                              </div>
+                              <div className="text-right shrink-0 ml-3">
+                                <span className="text-sm font-bold font-mono" style={{ color: 'var(--accent-primary)' }}>
+                                  ×{item.quantity}
+                                </span>
+                                {itemWeight > 0 && (
+                                  <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                                    {itemWeight.toFixed(1)} kg
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
@@ -178,7 +281,7 @@ export default function ConsolidarPage() {
         >
           {consolidar.isPending
             ? 'Procesando...'
-            : `🚛 Cargar al Camión y Marcar Entregados (${selectedIds.size} pedido${selectedIds.size !== 1 ? 's' : ''})`}
+            : `Validar y Enviar a Programados (${selectedIds.size} pedido${selectedIds.size !== 1 ? 's' : ''})`}
         </button>
       </div>
     </div>

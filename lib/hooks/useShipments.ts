@@ -89,13 +89,24 @@ export function useUpdateShipment() {
         .eq('id', shipmentId)
       if (error) throw error
 
-      // Note: shipment status (programado/en_camino/entregado) tracks the
-      // truck's physical journey. Order status was set to entregado at
-      // consolidation time and stays there independently.
+      // Cascade order status when shipment status changes
+      if (payload.status !== undefined) {
+        const orderStatus =
+          payload.status === 'entregado' ? 'entregado' : 'en_transito'
+        const deliveredAt =
+          payload.status === 'entregado' ? new Date().toISOString() : null
+
+        const { error: cascadeErr } = await supabase
+          .from('mm_orders')
+          .update({ status: orderStatus, delivered_at: deliveredAt })
+          .eq('shipment_id', shipmentId)
+        if (cascadeErr) throw cascadeErr
+      }
     },
     onSuccess: (_, { shipmentId }) => {
       queryClient.invalidateQueries({ queryKey: ['shipments'] })
       queryClient.invalidateQueries({ queryKey: ['shipment', shipmentId] })
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
     },
   })
 }
@@ -131,8 +142,8 @@ export function useAddOrdersToShipment() {
         .from('mm_orders')
         .update({
           shipment_id: shipmentId,
-          status: 'entregado',
-          delivered_at: new Date().toISOString(),
+          status: 'en_transito',
+          delivered_at: null,
         })
         .in('id', orderIds)
       if (error) throw error

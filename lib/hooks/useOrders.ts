@@ -229,13 +229,14 @@ export function useConsolidarOrders() {
 
       if (shipError) throw shipError
 
-      // Loading orders onto the truck = delivered (from warehouse perspective)
+      // Loading orders onto a programmed truck — delivery happens when
+      // the truck status moves to entregado (cascaded in useUpdateShipment).
       const { error: updateError } = await supabase
         .from('mm_orders')
         .update({
-          status: 'entregado',
+          status: 'en_transito',
           shipment_id: shipment.id,
-          delivered_at: new Date().toISOString(),
+          delivered_at: null,
         })
         .in('id', orderIds)
 

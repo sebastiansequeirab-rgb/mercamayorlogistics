@@ -2,15 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Truck, ClipboardList, Package, Users, History } from 'lucide-react'
+import { LayoutDashboard, Truck, ClipboardList, Package, Users } from 'lucide-react'
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/consolidar', label: 'Camión', icon: Truck },
-  { href: '/camiones', label: 'Camiones', icon: History },
-  { href: '/historial', label: 'Pedidos', icon: ClipboardList },
-  { href: '/clientes', label: 'Clientes', icon: Users },
-  { href: '/catalogo', label: 'Catálogo', icon: Package },
+  { href: '/tracking',   label: 'Tracking',   icon: LayoutDashboard },
+  { href: '/consolidar', label: 'Consolidar', icon: Truck },
+  { href: '/historial',  label: 'Historial',  icon: ClipboardList },
+  { href: '/catalogo',   label: 'Catálogo',   icon: Package },
+  { href: '/clientes',   label: 'Clientes',   icon: Users },
 ]
 
 export function BottomNav() {

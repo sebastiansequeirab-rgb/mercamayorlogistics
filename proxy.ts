@@ -10,6 +10,14 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Legacy redirects (old URLs from previous nav structure)
+  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+    return NextResponse.redirect(new URL('/tracking', request.url))
+  }
+  if (pathname === '/camiones' || pathname.startsWith('/camiones/')) {
+    return NextResponse.redirect(new URL('/historial', request.url))
+  }
+
   // Public routes
   if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
     if (user) {
@@ -21,7 +29,7 @@ export async function proxy(request: NextRequest) {
         .single()
 
       const role = profile?.role
-      const dest = role === 'vendedor' ? '/pedir' : '/dashboard'
+      const dest = role === 'vendedor' ? '/pedir' : '/tracking'
       return NextResponse.redirect(new URL(dest, request.url))
     }
     return supabaseResponse
