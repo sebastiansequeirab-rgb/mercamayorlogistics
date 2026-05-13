@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Truck, ClipboardList, Package, LogOut, Users } from 'lucide-react'
+import { LayoutDashboard, Truck, BusFront, ClipboardList, Package, LogOut, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile } from '@/lib/hooks/useProfile'
 import toast from 'react-hot-toast'
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 const navItems = [
   { href: '/tracking',   label: 'Tracking',   icon: LayoutDashboard },
   { href: '/consolidar', label: 'Consolidar', icon: Truck },
+  { href: '/camiones',   label: 'Camiones',   icon: BusFront },
   { href: '/historial',  label: 'Historial',  icon: ClipboardList },
   { href: '/catalogo',   label: 'Catálogo',   icon: Package },
   { href: '/clientes',   label: 'Clientes',   icon: Users },

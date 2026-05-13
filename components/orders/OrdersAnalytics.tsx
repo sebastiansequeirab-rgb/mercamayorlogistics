@@ -48,10 +48,16 @@ interface Props {
    * Initial tab. Default: 'analisis'.
    */
   initialView?: 'analisis' | 'marcas' | 'items'
+  /**
+   * Cuando es true, oculta todo lo relacionado con marcas: la tab "Por Marca"
+   * y las barras "Carga por Marca" del análisis. Usado en el contexto camión.
+   */
+  hideBrands?: boolean
 }
 
-export function OrdersAnalytics({ orders, initialView = 'analisis' }: Props) {
-  const [view, setView] = useState<'analisis' | 'marcas' | 'items'>(initialView)
+export function OrdersAnalytics({ orders, initialView = 'analisis', hideBrands = false }: Props) {
+  const effectiveInitial = hideBrands && initialView === 'marcas' ? 'analisis' : initialView
+  const [view, setView] = useState<'analisis' | 'marcas' | 'items'>(effectiveInitial)
 
   const productTotals = useMemo((): ProductTotal[] => {
     const totals = new Map<string, ProductTotal>()
@@ -139,20 +145,22 @@ export function OrdersAnalytics({ orders, initialView = 'analisis' }: Props) {
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border-subtle)' }}>
       {/* Tab switcher */}
       <div className="flex border-b" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}>
-        {(['analisis', 'marcas', 'items'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className="flex-1 px-3 py-2 text-xs font-medium transition-colors"
-            style={{
-              background: view === v ? 'var(--accent-primary)' : 'transparent',
-              color: view === v ? '#fff' : 'var(--text-muted)',
-            }}
-          >
-            {v === 'analisis' ? 'Análisis' : v === 'marcas' ? 'Por Marca' : 'Por Ítem'}
-          </button>
-        ))}
+        {(['analisis', 'marcas', 'items'] as const)
+          .filter((v) => !(hideBrands && v === 'marcas'))
+          .map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className="flex-1 px-3 py-2 text-xs font-medium transition-colors"
+              style={{
+                background: view === v ? 'var(--accent-primary)' : 'transparent',
+                color: view === v ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              {v === 'analisis' ? 'Análisis' : v === 'marcas' ? 'Por Marca' : 'Por Ítem'}
+            </button>
+          ))}
       </div>
 
       {/* ── ANÁLISIS ── */}
@@ -197,7 +205,7 @@ export function OrdersAnalytics({ orders, initialView = 'analisis' }: Props) {
           </div>
 
           {/* Brand bars */}
-          {brandGroups.length > 0 && (
+          {!hideBrands && brandGroups.length > 0 && (
             <div>
               <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>
                 {hasWeightData ? 'Carga por Marca (kg)' : 'Volumen por Marca (unidades)'}

@@ -47,14 +47,19 @@ export function ShipmentCard({ shipment, onView, actionButton, draggable }: Prop
       <div className="px-4 py-3.5">
         {/* Top row */}
         <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Truck size={14} style={{ color: 'var(--text-muted)' }} />
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <Truck size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
             <span
               className="text-xs font-mono font-bold shrink-0"
               style={{ color: 'var(--text-muted)' }}
             >
-              Camión #{String(shipment.shipment_number).padStart(3, '0')}
+              #{String(shipment.shipment_number).padStart(3, '0')}
             </span>
+            {shipment.name && (
+              <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                {shipment.name}
+              </span>
+            )}
             <ShipmentStatusBadge status={shipment.status} size="sm" />
           </div>
         </div>

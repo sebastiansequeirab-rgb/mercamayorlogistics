@@ -11,7 +11,7 @@ import { OrderStatusChanger } from './OrderStatusChanger'
 import { CommentsSection } from './CommentsSection'
 import { ClientPicker } from '@/components/forms/ClientPicker'
 import { ProductSelector } from '@/components/forms/ProductSelector'
-import { PRICE_LIST_LABELS, BILLING_TYPE_LABELS } from '@/lib/utils/order-status'
+import { PRICE_LIST_LABELS, PRICE_LIST_OPTIONS, BILLING_TYPE_LABELS } from '@/lib/utils/order-status'
 import { useUpdateOrder } from '@/lib/hooks/useOrders'
 import toast from 'react-hot-toast'
 import type { Order, UserRole, PriceList, BillingType, Client, Product } from '@/lib/types/database'
@@ -21,6 +21,7 @@ interface Props {
   open: boolean
   onClose: () => void
   userRole: UserRole
+  onOpenShipment?: (shipmentId: string) => void
 }
 
 interface SelectedItem {
@@ -28,11 +29,11 @@ interface SelectedItem {
   quantity: number
 }
 
-export function OrderDetailModal({ order, open, onClose, userRole }: Props) {
+export function OrderDetailModal({ order, open, onClose, userRole, onOpenShipment }: Props) {
   const canEdit = userRole === 'admin' || userRole === 'gestora'
   const [editing, setEditing] = useState(false)
   const [client, setClient] = useState<Client | null>(null)
-  const [priceList, setPriceList] = useState<PriceList>('lista_50')
+  const [priceList, setPriceList] = useState<PriceList>('lista_50_mm')
   const [billingType, setBillingType] = useState<BillingType>('factura')
   const [items, setItems] = useState<SelectedItem[]>([])
   const [notes, setNotes] = useState('')
@@ -141,13 +142,13 @@ export function OrderDetailModal({ order, open, onClose, userRole }: Props) {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Lista de precios</label>
-                <div className="flex gap-2">
-                  {(['lista_50', 'lista_60'] as PriceList[]).map((list) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {PRICE_LIST_OPTIONS.map((list) => (
                     <button
                       key={list}
                       type="button"
                       onClick={() => setPriceList(list)}
-                      className="flex-1 py-2 rounded-md text-sm font-medium border transition-all"
+                      className="py-2 px-2.5 rounded-md text-xs font-medium border transition-all text-left leading-tight"
                       style={{
                         background: priceList === list ? 'var(--accent-primary)' : 'var(--bg-surface)',
                         borderColor: priceList === list ? 'var(--accent-primary)' : 'var(--border-subtle)',
@@ -210,10 +211,31 @@ export function OrderDetailModal({ order, open, onClose, userRole }: Props) {
                   value={format(new Date(order.created_at), "d 'de' MMMM yyyy, HH:mm", { locale: es })}
                 />
                 {order.shipment && (
-                  <InfoRow
-                    label="Camión"
-                    value={`#${String(order.shipment.shipment_number).padStart(3, '0')}`}
-                  />
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs w-24 shrink-0 pt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      Camión
+                    </span>
+                    {onOpenShipment ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sid = order.shipment!.id
+                          onClose()
+                          onOpenShipment(sid)
+                        }}
+                        className="text-sm underline hover:no-underline text-left"
+                        style={{ color: 'var(--accent-primary)' }}
+                      >
+                        #{String(order.shipment.shipment_number).padStart(3, '0')}
+                        {order.shipment.name ? ` — ${order.shipment.name}` : ''}
+                      </button>
+                    ) : (
+                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                        #{String(order.shipment.shipment_number).padStart(3, '0')}
+                        {order.shipment.name ? ` — ${order.shipment.name}` : ''}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {order.notes && <InfoRow label="Notas" value={order.notes} />}
               </div>

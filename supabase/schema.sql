@@ -47,6 +47,7 @@ CREATE TABLE mm_products (
 CREATE TABLE mm_shipments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shipment_number BIGINT GENERATED ALWAYS AS IDENTITY,
+  name TEXT,
   status TEXT NOT NULL DEFAULT 'programado' CHECK (status IN ('programado', 'en_camino', 'entregado')),
   notes TEXT,
   created_by UUID REFERENCES mm_profiles(id),
@@ -59,7 +60,11 @@ CREATE TABLE mm_orders (
   order_number BIGINT GENERATED ALWAYS AS IDENTITY,
   created_by UUID NOT NULL REFERENCES mm_profiles(id),
   vendor_client TEXT NOT NULL,
-  price_list TEXT NOT NULL CHECK (price_list IN ('lista_50', 'lista_60')),
+  price_list TEXT NOT NULL CHECK (price_list IN (
+    'lista_50_mm','lista_60_mm',
+    'lista_a_albeca','lista_b_albeca','lista_c_albeca',
+    'lista_a_ioseca','lista_b_ioseca'
+  )),
   billing_type TEXT NOT NULL CHECK (billing_type IN ('factura', 'nota_de_entrega')),
   status TEXT NOT NULL DEFAULT 'recibido' CHECK (status IN ('recibido', 'en_transito', 'entregado')),
   shipment_id UUID REFERENCES mm_shipments(id),
@@ -85,6 +90,18 @@ CREATE TABLE mm_order_items (
   order_id UUID NOT NULL REFERENCES mm_orders(id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES mm_products(id),
   quantity INTEGER NOT NULL CHECK (quantity > 0)
+);
+
+-- 5b. MM_SHIPMENT_ITEMS — allocations granulares (qué cantidad de cada item va en cada camión).
+--     La orden conserva su cantidad pedida intacta en mm_order_items.
+CREATE TABLE mm_shipment_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shipment_id UUID NOT NULL REFERENCES mm_shipments(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES mm_orders(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES mm_products(id),
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (shipment_id, order_id, product_id)
 );
 
 -- 6. MM_ORDER_COMMENTS

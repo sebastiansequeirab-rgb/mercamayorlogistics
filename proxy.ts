@@ -14,9 +14,6 @@ export async function proxy(request: NextRequest) {
   if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
     return NextResponse.redirect(new URL('/tracking', request.url))
   }
-  if (pathname === '/camiones' || pathname.startsWith('/camiones/')) {
-    return NextResponse.redirect(new URL('/historial', request.url))
-  }
 
   // Public routes
   if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {

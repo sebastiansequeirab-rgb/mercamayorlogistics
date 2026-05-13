@@ -1,6 +1,13 @@
 export type UserRole = 'admin' | 'gestora' | 'vendedor'
 export type OrderStatus = 'recibido' | 'en_transito' | 'entregado'
-export type PriceList = 'lista_50' | 'lista_60'
+export type PriceList =
+  | 'lista_50_mm'
+  | 'lista_60_mm'
+  | 'lista_a_albeca'
+  | 'lista_b_albeca'
+  | 'lista_c_albeca'
+  | 'lista_a_ioseca'
+  | 'lista_b_ioseca'
 export type BillingType = 'factura' | 'nota_de_entrega'
 export type ShipmentStatus = 'programado' | 'en_camino' | 'entregado'
 
@@ -88,10 +95,27 @@ export interface OrderComment {
 export interface Shipment {
   id: string
   shipment_number: number
+  name: string | null
   status: ShipmentStatus
   notes: string | null
   created_by: string | null
   created_at: string
+}
+
+export interface ShipmentItem {
+  id: string
+  shipment_id: string
+  order_id: string
+  product_id: string
+  quantity: number
+  created_at: string
+  product?: Product
+}
+
+export interface ShipmentAllocationInput {
+  order_id: string
+  product_id: string
+  quantity: number
 }
 
 export interface NewOrderPayload {
@@ -125,4 +149,5 @@ export interface ProductUpdatePayload {
 export interface ShipmentUpdatePayload {
   status?: ShipmentStatus
   notes?: string | null
+  name?: string | null
 }

@@ -2,19 +2,20 @@
 
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { MessageSquare, Package2, User } from 'lucide-react'
+import { MessageSquare, Package2, Truck, User } from 'lucide-react'
 import { OrderStatusBadge } from './OrderStatusBadge'
 import { OrderStatusChanger } from './OrderStatusChanger'
-import { getStatusConfig, PRICE_LIST_LABELS, BILLING_TYPE_LABELS } from '@/lib/utils/order-status'
+import { getStatusConfig, PRICE_LIST_SHORT, BILLING_TYPE_LABELS } from '@/lib/utils/order-status'
 import type { Order, UserRole } from '@/lib/types/database'
 
 interface Props {
   order: Order
   userRole: UserRole
   onViewDetail: (order: Order) => void
+  onOpenShipment?: (shipmentId: string) => void
 }
 
-export function OrderCard({ order, userRole, onViewDetail }: Props) {
+export function OrderCard({ order, userRole, onViewDetail, onOpenShipment }: Props) {
   const config = getStatusConfig(order.status)
   const canChangeStatus = userRole === 'admin' || userRole === 'gestora'
   const itemCount = order.items?.length ?? 0
@@ -50,14 +51,33 @@ export function OrderCard({ order, userRole, onViewDetail }: Props) {
         </p>
 
         {/* Meta tags */}
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-secondary)' }}>
-            {PRICE_LIST_LABELS[order.price_list]}
+            {PRICE_LIST_SHORT[order.price_list]}
           </span>
           <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-secondary)' }}>
             {BILLING_TYPE_LABELS[order.billing_type]}
           </span>
         </div>
+
+        {/* Shipment pill — clickeable, abre el detalle del camión */}
+        {order.shipment && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onOpenShipment?.(order.shipment!.id)
+            }}
+            disabled={!onOpenShipment}
+            className="mb-3 inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition-colors hover:bg-white/5 disabled:cursor-default"
+            style={{ color: 'var(--accent-primary)', borderColor: 'color-mix(in oklab, var(--accent-primary) 40%, transparent)' }}
+            title={onOpenShipment ? 'Ver camión' : undefined}
+          >
+            <Truck size={11} />
+            Camión #{String(order.shipment.shipment_number).padStart(3, '0')}
+            {order.shipment.name ? ` — ${order.shipment.name}` : ''}
+          </button>
+        )}
 
         {/* Stats row */}
         <div className="flex items-center gap-4 mb-3">

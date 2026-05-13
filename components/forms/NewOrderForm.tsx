@@ -5,6 +5,7 @@ import { useCreateOrder } from '@/lib/hooks/useOrders'
 import { useProducts } from '@/lib/hooks/useProducts'
 import { ProductSelector } from './ProductSelector'
 import { ClientPicker } from './ClientPicker'
+import { PRICE_LIST_OPTIONS, PRICE_LIST_LABELS } from '@/lib/utils/order-status'
 import type { Client, Product, PriceList, BillingType } from '@/lib/types/database'
 import toast from 'react-hot-toast'
 
@@ -19,7 +20,7 @@ interface Props {
 
 export function NewOrderForm({ onSuccess }: Props) {
   const [client, setClient] = useState<Client | null>(null)
-  const [priceList, setPriceList] = useState<PriceList>('lista_50')
+  const [priceList, setPriceList] = useState<PriceList>('lista_50_mm')
   const [billingType, setBillingType] = useState<BillingType>('factura')
   const [items, setItems] = useState<SelectedItem[]>([])
   const [notes, setNotes] = useState('')
@@ -51,7 +52,7 @@ export function NewOrderForm({ onSuccess }: Props) {
 
       toast.success(`✅ Pedido #${String(order.order_number).padStart(3, '0')} enviado`)
       setClient(null)
-      setPriceList('lista_50')
+      setPriceList('lista_50_mm')
       setBillingType('factura')
       setItems([])
       setNotes('')
@@ -73,25 +74,25 @@ export function NewOrderForm({ onSuccess }: Props) {
         <ClientPicker value={client} onChange={setClient} />
       </div>
 
-      {/* Price list toggle */}
+      {/* Price list */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           Lista de precios *
         </label>
-        <div className="flex gap-2">
-          {(['lista_50', 'lista_60'] as PriceList[]).map((list) => (
+        <div className="grid grid-cols-2 gap-2">
+          {PRICE_LIST_OPTIONS.map((list) => (
             <button
               key={list}
               type="button"
               onClick={() => setPriceList(list)}
-              className="flex-1 py-2.5 rounded-md text-sm font-medium border transition-all"
+              className="py-2 px-2.5 rounded-md text-xs font-medium border transition-all text-left leading-tight"
               style={{
                 background: priceList === list ? 'var(--accent-primary)' : 'var(--bg-surface)',
                 borderColor: priceList === list ? 'var(--accent-primary)' : 'var(--border-subtle)',
                 color: priceList === list ? '#fff' : 'var(--text-secondary)',
               }}
             >
-              {list === 'lista_50' ? 'Lista 50' : 'Lista 60'}
+              {PRICE_LIST_LABELS[list]}
             </button>
           ))}
         </div>

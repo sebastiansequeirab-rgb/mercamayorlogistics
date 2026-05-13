@@ -2,13 +2,19 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { Order, OrderStatus, NewOrderPayload, UpdateOrderPayload } from '@/lib/types/database'
+import type {
+  Order,
+  OrderStatus,
+  NewOrderPayload,
+  UpdateOrderPayload,
+  ShipmentAllocationInput,
+} from '@/lib/types/database'
 
 const ORDER_SELECT = `
   *,
   creator:mm_profiles!created_by(id, full_name, role),
   client:mm_clients!client_id(id, name, rif, address, phone, active, created_at),
-  shipment:mm_shipments!shipment_id(id, shipment_number, status, notes, created_at),
+  shipment:mm_shipments!shipment_id(id, shipment_number, name, status, notes, created_at),
   items:mm_order_items(
     id, order_id, product_id, quantity,
     product:mm_products(id, code, name, unit, categoria, marca, presentacion, peso_kg)
@@ -206,41 +212,54 @@ export function useConsolidarOrders() {
 
   return useMutation({
     mutationFn: async ({
-      orderIds,
+      allocations,
+      name,
       notes,
     }: {
-      orderIds: string[]
+      allocations: ShipmentAllocationInput[]
+      name: string
       notes?: string
     }) => {
-      if (orderIds.length === 0) throw new Error('No hay pedidos seleccionados')
+      if (allocations.length === 0) throw new Error('No hay items seleccionados')
+      if (!name.trim()) throw new Error('El camión necesita un nombre')
 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No autenticado')
 
+      const orderIds = Array.from(new Set(allocations.map((a) => a.order_id)))
+
       const { data: shipment, error: shipError } = await supabase
         .from('mm_shipments')
         .insert({
+          name: name.trim(),
           status: 'programado',
           notes: notes?.trim() || null,
           created_by: user.id,
         })
-        .select('id, shipment_number')
+        .select('id, shipment_number, name')
         .single()
-
       if (shipError) throw shipError
 
-      // Loading orders onto a programmed truck — delivery happens when
-      // the truck status moves to entregado (cascaded in useUpdateShipment).
-      const { error: updateError } = await supabase
+      // Asignar shipment_id a las órdenes — el status del pedido lo controla el usuario.
+      const { error: orderErr } = await supabase
         .from('mm_orders')
-        .update({
-          status: 'en_transito',
-          shipment_id: shipment.id,
-          delivered_at: null,
-        })
+        .update({ shipment_id: shipment.id })
         .in('id', orderIds)
+      if (orderErr) throw orderErr
 
-      if (updateError) throw updateError
+      // Insertar allocations granulares.
+      const rows = allocations
+        .filter((a) => a.quantity > 0)
+        .map((a) => ({
+          shipment_id: shipment.id,
+          order_id: a.order_id,
+          product_id: a.product_id,
+          quantity: a.quantity,
+        }))
+      if (rows.length > 0) {
+        const { error: allocErr } = await supabase.from('mm_shipment_items').insert(rows)
+        if (allocErr) throw allocErr
+      }
 
       return shipment
     },
